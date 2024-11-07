@@ -6,9 +6,11 @@ import {
   allowedDocumentTypes,
   allowedImageTypes,
 } from "./data";
-import { unlink } from "node:fs/promises";
 import { GoogleAIFileManager } from "@google/generative-ai/server";
 import model from "../gemini/gemini";
+import { readdir, unlink, mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import cron from "node-cron";
 
 export async function handleMedia(
   ctx: TelegramBot.Message,
@@ -125,3 +127,33 @@ export async function downloadPhoto(
 ): Promise<{ filePath: string; mimeType: string } | Error> {
   return downloadResource(url, allowedImageTypes);
 }
+
+async function manageTempFolder() {
+  const tempFolderPath = "./temp";
+  const gitkeepFilePath = join(tempFolderPath, ".gitkeep");
+
+  try {
+    // Check if the temp folder exists
+    await mkdir(tempFolderPath, { recursive: true });
+
+    // Read the contents of the temp folder
+    const files = await readdir(tempFolderPath);
+
+    // Remove all files except .gitkeep
+    await Promise.all(
+      files.map(async (file) => {
+        if (file !== ".gitkeep") {
+          await unlink(join(tempFolderPath, file));
+        }
+      }),
+    );
+
+    // Ensure .gitkeep file exists
+    await writeFile(gitkeepFilePath, "", { flag: "wx" }).catch(() => {});
+  } catch (err) {
+    console.error("Error managing temp folder:", err);
+  }
+}
+
+// Schedule the function to run every day at 00:00 UTC
+cron.schedule("0 0 * * *", manageTempFolder);
