@@ -1,1 +1,1 @@
-export type DocumentType = Record<string, string>;
+export type AllowedTypes = { [key: string]: string };

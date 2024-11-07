@@ -1,13 +1,62 @@
-import { allowedDocumentTypes } from "./data";
+import type TelegramBot from "node-telegram-bot-api";
+import { bot } from "../bot/bot";
+import type { AllowedTypes } from "../types/types";
+import { allowedAudioTypes, allowedDocumentTypes } from "./data";
 import { unlink } from "node:fs/promises";
+import { GoogleAIFileManager } from "@google/generative-ai/server";
+import model from "../gemini/gemini";
 
-export async function downloadFile(
+export async function handleAudio(ctx: TelegramBot.Message, fileId: string) {
+  bot.sendChatAction(ctx.chat.id, "typing");
+  const audioLink = await bot.getFileLink(fileId);
+  if (!audioLink) {
+    bot.sendMessage(ctx.chat.id, "Something went wrong...");
+    return;
+  }
+
+  const downloadResult = await downloadAudio(audioLink);
+  if (downloadResult instanceof Error) {
+    bot.sendMessage(ctx.chat.id, "Something went wrong...");
+    console.log("error downloading file", downloadResult);
+    return;
+  }
+
+  const { filePath, mimeType } = downloadResult;
+  const fileManager = new GoogleAIFileManager(Bun.env.GEMINI_TOKEN as string);
+  const uploadResponse = await fileManager.uploadFile(filePath as string, {
+    mimeType,
+    displayName: "file",
+  });
+
+  const result = await model.generateContent([
+    {
+      fileData: {
+        mimeType: uploadResponse.file.mimeType,
+        fileUri: uploadResponse.file.uri,
+      },
+    },
+    {
+      text:
+        ctx.text ||
+        ctx.caption ||
+        "Analyze this file and give me an answer to this media",
+    },
+  ]);
+  bot.sendMessage(ctx.chat.id, result.response.text());
+  const error = await deleteFile(filePath);
+  if (error instanceof Error) {
+    console.log("error deleting file", error);
+    bot.sendMessage(ctx.chat.id, "Something went wrong...");
+  }
+}
+
+async function downloadResource(
   url: string,
+  allowedTypes: AllowedTypes,
 ): Promise<{ filePath: string; mimeType: string } | Error> {
   try {
-    console.log("URL IS: ", url);
     const fileType = getFileTypebyUrl(url);
-    if (!allowedDocumentTypes[fileType]) {
+    if (!allowedTypes[fileType]) {
       throw new Error("Invalid file type");
     }
     const response = await fetch(url);
@@ -21,7 +70,7 @@ export async function downloadFile(
     await Bun.write(filePath, blob);
     return {
       filePath,
-      mimeType: allowedDocumentTypes[fileType],
+      mimeType: allowedTypes[fileType],
     };
   } catch (err) {
     console.log(err);
@@ -47,4 +96,16 @@ function getFileTypebyUrl(url: string) {
     return "python";
   }
   return fileType;
+}
+
+export async function downloadAudio(
+  url: string,
+): Promise<{ filePath: string; mimeType: string } | Error> {
+  return downloadResource(url, allowedAudioTypes);
+}
+
+export async function downloadFile(
+  url: string,
+): Promise<{ filePath: string; mimeType: string } | Error> {
+  return downloadResource(url, allowedDocumentTypes);
 }
