@@ -1,6 +1,6 @@
-import type { AudioType, DocumentType } from "../types/types";
+import type { AllowedTypes } from "../types/types";
 
-export const allowedDocumentTypes: DocumentType = {
+export const allowedDocumentTypes: AllowedTypes = {
   pdf: "application/pdf",
   javascript: "text/javascript",
   python: "text/x-python",
@@ -13,7 +13,7 @@ export const allowedDocumentTypes: DocumentType = {
   rtf: "text/rtf",
 };
 
-export const allowedAudioTypes: AudioType = {
+export const allowedAudioTypes: AllowedTypes = {
   wav: "audio/wav",
   mp3: "audio/mp3",
   aiff: "audio/aiff",
@@ -21,4 +21,13 @@ export const allowedAudioTypes: AudioType = {
   ogg: "audio/ogg",
   flac: "audio/flac",
   oga: "audio/oga",
+};
+
+export const allowedImageTypes: AllowedTypes = {
+  png: "image/png",
+  jpeg: "image/jpeg",
+  jpg: "image/jpeg",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
 };

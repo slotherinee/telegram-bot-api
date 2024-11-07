@@ -1,20 +1,30 @@
 import type TelegramBot from "node-telegram-bot-api";
 import { bot } from "../bot/bot";
 import type { AllowedTypes } from "../types/types";
-import { allowedAudioTypes, allowedDocumentTypes } from "./data";
+import {
+  allowedAudioTypes,
+  allowedDocumentTypes,
+  allowedImageTypes,
+} from "./data";
 import { unlink } from "node:fs/promises";
 import { GoogleAIFileManager } from "@google/generative-ai/server";
 import model from "../gemini/gemini";
 
-export async function handleAudio(ctx: TelegramBot.Message, fileId: string) {
+export async function handleMedia(
+  ctx: TelegramBot.Message,
+  fileId: string,
+  downloadFunction: (
+    url: string,
+  ) => Promise<{ filePath: string; mimeType: string } | Error>,
+) {
   bot.sendChatAction(ctx.chat.id, "typing");
-  const audioLink = await bot.getFileLink(fileId);
-  if (!audioLink) {
+  const fileLink = await bot.getFileLink(fileId);
+  if (!fileLink) {
     bot.sendMessage(ctx.chat.id, "Something went wrong...");
     return;
   }
 
-  const downloadResult = await downloadAudio(audioLink);
+  const downloadResult = await downloadFunction(fileLink);
   if (downloadResult instanceof Error) {
     bot.sendMessage(ctx.chat.id, "Something went wrong...");
     console.log("error downloading file", downloadResult);
@@ -39,7 +49,7 @@ export async function handleAudio(ctx: TelegramBot.Message, fileId: string) {
       text:
         ctx.text ||
         ctx.caption ||
-        "Analyze this file and give me an answer to this media",
+        "Analyze this file and give me an answer to this media or just describe it",
     },
   ]);
   bot.sendMessage(ctx.chat.id, result.response.text());
@@ -108,4 +118,10 @@ export async function downloadFile(
   url: string,
 ): Promise<{ filePath: string; mimeType: string } | Error> {
   return downloadResource(url, allowedDocumentTypes);
+}
+
+export async function downloadPhoto(
+  url: string,
+): Promise<{ filePath: string; mimeType: string } | Error> {
+  return downloadResource(url, allowedImageTypes);
 }

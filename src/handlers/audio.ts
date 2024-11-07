@@ -1,8 +1,8 @@
 import { bot } from "../bot/bot";
-import { handleAudio } from "../utils/utils";
+import { downloadAudio, handleMedia } from "../utils/utils";
 
 export default () => {
   bot.on("audio", async (ctx) => {
-    await handleAudio(ctx, ctx.audio?.file_id as string);
+    await handleMedia(ctx, ctx.audio?.file_id as string, downloadAudio);
   });
 };
