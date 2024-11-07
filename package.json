@@ -1,0 +1,21 @@
+{
+  "name": "telegram-bot-api",
+  "module": "index.ts",
+  "main": "./src/index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node-telegram-bot-api": "^0.64.7",
+    "@typescript-eslint/parser": "^5.0.1",
+    "eslint": "^8.52.0",
+    "prettier": "^3.1.0",
+    "prettier-eslint": "^16.1.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "node-telegram-bot-api": "^0.66.0"
+  }
+}
