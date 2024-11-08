@@ -11,6 +11,7 @@ import model from "../gemini/gemini";
 import { readdir, unlink, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import cron from "node-cron";
+import { query } from "../hf";
 
 export async function handleMedia(
   ctx: TelegramBot.Message,
@@ -52,7 +53,7 @@ export async function handleMedia(
         text:
           ctx.text ||
           ctx.caption ||
-          "Analyze this media file and give an answer! Or just describe it if analysis is not possible",
+          "Check this media file and give an answer!",
       },
     ]);
 
@@ -99,6 +100,33 @@ async function downloadResource(
   } catch (err) {
     console.log(err);
     return err as Error;
+  }
+}
+
+export async function handleImageGeneration(
+  ctx: TelegramBot.Message,
+): Promise<string> {
+  try {
+    bot.sendChatAction(ctx.chat.id, "upload_photo");
+    const filePath = await query({
+      inputs: ctx.text!.slice(3),
+    });
+    if (filePath instanceof Error || typeof filePath !== "string") {
+      bot.sendMessage(ctx.chat.id, "An error occurred");
+      return "❌";
+    }
+    await bot.sendPhoto(
+      ctx.chat.id,
+      filePath as string,
+      {},
+      { contentType: "application/octet-stream" },
+    );
+    await deleteFile(filePath as string);
+    return "📷";
+  } catch (error) {
+    console.log("Error in handleInstagramQuery:", error);
+    bot.sendMessage(ctx.chat.id, "An error occurred");
+    return "❌";
   }
 }
 
