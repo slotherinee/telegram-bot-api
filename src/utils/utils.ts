@@ -51,15 +51,21 @@ export async function handleMedia(
       text:
         ctx.text ||
         ctx.caption ||
-        "Analyze this file and give me an answer to this media or just describe it",
+        "Analyze this media file and give an answer! Or just describe it if analysis is not possible",
     },
   ]);
-  bot.sendMessage(ctx.chat.id, result.response.text());
+
   const error = await deleteFile(filePath);
   if (error instanceof Error) {
     console.log("error deleting file", error);
     bot.sendMessage(ctx.chat.id, "Something went wrong...");
   }
+
+  if (!result.response.text()) {
+    bot.sendMessage(ctx.chat.id, "Something went wrong...");
+  }
+
+  return result.response.text();
 }
 
 async function downloadResource(
