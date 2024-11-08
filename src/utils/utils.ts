@@ -19,53 +19,59 @@ export async function handleMedia(
     url: string,
   ) => Promise<{ filePath: string; mimeType: string } | Error>,
 ) {
-  bot.sendChatAction(ctx.chat.id, "typing");
-  const fileLink = await bot.getFileLink(fileId);
-  if (!fileLink) {
-    bot.sendMessage(ctx.chat.id, "Something went wrong...");
-    return;
-  }
+  try {
+    bot.sendChatAction(ctx.chat.id, "typing");
+    const fileLink = await bot.getFileLink(fileId);
+    if (!fileLink) {
+      bot.sendMessage(ctx.chat.id, "Something went wrong...");
+      return;
+    }
 
-  const downloadResult = await downloadFunction(fileLink);
-  if (downloadResult instanceof Error) {
-    bot.sendMessage(ctx.chat.id, "Something went wrong...");
-    console.log("error downloading file", downloadResult);
-    return;
-  }
+    const downloadResult = await downloadFunction(fileLink);
+    if (downloadResult instanceof Error) {
+      bot.sendMessage(ctx.chat.id, "Something went wrong...");
+      console.log("error downloading file", downloadResult);
+      return;
+    }
 
-  const { filePath, mimeType } = downloadResult;
-  const fileManager = new GoogleAIFileManager(Bun.env.GEMINI_TOKEN as string);
-  const uploadResponse = await fileManager.uploadFile(filePath as string, {
-    mimeType,
-    displayName: "file",
-  });
+    const { filePath, mimeType } = downloadResult;
+    const fileManager = new GoogleAIFileManager(Bun.env.GEMINI_TOKEN as string);
+    const uploadResponse = await fileManager.uploadFile(filePath as string, {
+      mimeType,
+      displayName: "file",
+    });
 
-  const result = await model.generateContent([
-    {
-      fileData: {
-        mimeType: uploadResponse.file.mimeType,
-        fileUri: uploadResponse.file.uri,
+    const result = await model.generateContent([
+      {
+        fileData: {
+          mimeType: uploadResponse.file.mimeType,
+          fileUri: uploadResponse.file.uri,
+        },
       },
-    },
-    {
-      text:
-        ctx.text ||
-        ctx.caption ||
-        "Analyze this media file and give an answer! Or just describe it if analysis is not possible",
-    },
-  ]);
+      {
+        text:
+          ctx.text ||
+          ctx.caption ||
+          "Analyze this media file and give an answer! Or just describe it if analysis is not possible",
+      },
+    ]);
 
-  const error = await deleteFile(filePath);
-  if (error instanceof Error) {
-    console.log("error deleting file", error);
+    const error = await deleteFile(filePath);
+    if (error instanceof Error) {
+      console.log("error deleting file", error);
+      bot.sendMessage(ctx.chat.id, "Something went wrong...");
+    }
+
+    if (!result.response.text()) {
+      bot.sendMessage(ctx.chat.id, "Something went wrong...");
+    }
+
+    return result.response.text();
+  } catch (error) {
+    console.log("Error handling media:", error);
     bot.sendMessage(ctx.chat.id, "Something went wrong...");
+    return;
   }
-
-  if (!result.response.text()) {
-    bot.sendMessage(ctx.chat.id, "Something went wrong...");
-  }
-
-  return result.response.text();
 }
 
 async function downloadResource(
