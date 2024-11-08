@@ -4,7 +4,6 @@ import { bot } from "../bot/bot";
 
 const MAX_REQUESTS_PER_MINUTE = 15;
 
-// Create a queue with a concurrency limit
 const requestQueue = new PQueue({
   concurrency: MAX_REQUESTS_PER_MINUTE,
   interval: 60000,
@@ -19,7 +18,6 @@ export const queueMiddleware = (
     const text = ctx.text as string;
     let sentMessage: TelegramBot.Message | undefined;
 
-    // Add the request to the queue
     requestQueue.add(async () => {
       try {
         const responseText = await handler(ctx);

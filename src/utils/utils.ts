@@ -133,13 +133,10 @@ async function manageTempFolder() {
   const gitkeepFilePath = join(tempFolderPath, ".gitkeep");
 
   try {
-    // Check if the temp folder exists
     await mkdir(tempFolderPath, { recursive: true });
 
-    // Read the contents of the temp folder
     const files = await readdir(tempFolderPath);
 
-    // Remove all files except .gitkeep
     await Promise.all(
       files.map(async (file) => {
         if (file !== ".gitkeep") {
@@ -148,12 +145,10 @@ async function manageTempFolder() {
       }),
     );
 
-    // Ensure .gitkeep file exists
     await writeFile(gitkeepFilePath, "", { flag: "wx" }).catch(() => {});
   } catch (err) {
     console.error("Error managing temp folder:", err);
   }
 }
 
-// Schedule the function to run every day at 00:00 UTC
 cron.schedule("0 0 * * *", manageTempFolder);
