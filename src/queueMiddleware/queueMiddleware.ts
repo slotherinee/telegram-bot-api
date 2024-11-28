@@ -32,12 +32,12 @@ export const queueMiddleware = (
       } catch (error) {
         console.log(error);
         if (sentMessage) {
-          await bot.editMessageText("Something went wrong...", {
+          await bot.editMessageText("Something went wrong...5124", {
             chat_id: chatId,
             message_id: sentMessage.message_id,
           });
         } else {
-          await bot.sendMessage(chatId, "Something went wrong...");
+          await bot.sendMessage(chatId, "Something went wrong...5111");
         }
       }
     });
@@ -51,72 +51,72 @@ export const queueMiddleware = (
   };
 };
 
-export const queueMediaMiddleware = (
-  handler: (
-    ctx: TelegramBot.Message,
-    fileId: string,
-    downloadFunction: (
-      url: string,
-    ) => Promise<{ filePath: string; mimeType: string } | Error>,
-  ) => Promise<string | undefined>,
-  downloadFunction: (
-    url: string,
-  ) => Promise<{ filePath: string; mimeType: string } | Error>,
-) => {
-  return async (ctx: TelegramBot.Message) => {
-    const chatId = ctx.chat.id;
-    let fileId: string | undefined;
+// export const queueMediaMiddleware = (
+//   handler: (
+//     ctx: TelegramBot.Message,
+//     fileId: string,
+//     downloadFunction: (
+//       url: string,
+//     ) => Promise<{ filePath: string; mimeType: string } | Error>,
+//   ) => Promise<string | undefined>,
+//   downloadFunction: (
+//     url: string,
+//   ) => Promise<{ filePath: string; mimeType: string } | Error>,
+// ) => {
+//   return async (ctx: TelegramBot.Message) => {
+//     const chatId = ctx.chat.id;
+//     let fileId: string | undefined;
 
-    if (ctx.audio?.file_id) {
-      fileId = ctx.audio.file_id;
-    } else if (ctx.document?.file_id) {
-      fileId = ctx.document.file_id;
-    } else if (ctx.photo) {
-      fileId = ctx.photo[ctx.photo.length - 1]?.file_id;
-    } else if (ctx.voice?.file_id) {
-      fileId = ctx.voice.file_id;
-    }
+//     if (ctx.audio?.file_id) {
+//       fileId = ctx.audio.file_id;
+//     } else if (ctx.document?.file_id) {
+//       fileId = ctx.document.file_id;
+//     } else if (ctx.photo) {
+//       fileId = ctx.photo[ctx.photo.length - 1]?.file_id;
+//     } else if (ctx.voice?.file_id) {
+//       fileId = ctx.voice.file_id;
+//     }
 
-    if (!fileId) {
-      await bot.sendMessage(chatId, "No media file found.");
-      return;
-    }
+//     if (!fileId) {
+//       await bot.sendMessage(chatId, "No media file found.");
+//       return;
+//     }
 
-    let sentMessage: TelegramBot.Message | undefined;
+//     let sentMessage: TelegramBot.Message | undefined;
 
-    requestQueue.add(async () => {
-      try {
-        const responseText = await handler(ctx, fileId, downloadFunction);
+//     requestQueue.add(async () => {
+//       try {
+//         const responseText = await handler(ctx, fileId, downloadFunction);
 
-        if (sentMessage) {
-          await bot.editMessageText(responseText || "Something went wrong...", {
-            chat_id: chatId,
-            message_id: sentMessage.message_id,
-          });
-        } else {
-          await bot.sendMessage(
-            chatId,
-            responseText || "Something went wrong...",
-          );
-        }
-      } catch (error) {
-        console.log(error);
-        if (sentMessage) {
-          await bot.editMessageText("Something went wrong...", {
-            chat_id: chatId,
-            message_id: sentMessage.message_id,
-          });
-        } else {
-          await bot.sendMessage(chatId, "Something went wrong...");
-        }
-      }
-    });
+//         if (sentMessage) {
+//           await bot.editMessageText(responseText || "Something went wrong...222", {
+//             chat_id: chatId,
+//             message_id: sentMessage.message_id,
+//           });
+//         } else {
+//           await bot.sendMessage(
+//             chatId,
+//             responseText || "Something went wrong...444",
+//           );
+//         }
+//       } catch (error) {
+//         console.log(error);
+//         if (sentMessage) {
+//           await bot.editMessageText("Something went wrong...555", {
+//             chat_id: chatId,
+//             message_id: sentMessage.message_id,
+//           });
+//         } else {
+//           await bot.sendMessage(chatId, "Something went wrong...666");
+//         }
+//       }
+//     });
 
-    if (requestQueue.size > 0) {
-      sentMessage = await bot.sendMessage(
-        chatId,
-        "Your request is in a queue, please wait...",
-      );
-    }
-  };
-};
+//     if (requestQueue.size > 0) {
+//       sentMessage = await bot.sendMessage(
+//         chatId,
+//         "Your request is in a queue, please wait...",
+//       );
+//     }
+//   };
+// };

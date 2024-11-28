@@ -1,7 +1,9 @@
 import { bot } from "../bot/bot";
-import { queueMediaMiddleware } from "../queueMiddleware/queueMiddleware";
 import { downloadFile, handleMedia } from "../utils/utils";
 
 export default () => {
-  bot.on("document", queueMediaMiddleware(handleMedia, downloadFile));
+  bot.on("document", async (ctx) => {
+    const fileId = ctx.document?.file_id!;
+    handleMedia(ctx, fileId, downloadFile);
+  });
 };

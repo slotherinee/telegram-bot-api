@@ -37,12 +37,6 @@ export default () => {
       const userSession = userSessions.get(chatId)!;
       const result = await userSession.chat.sendMessage(ctx.text as string);
 
-      // console.log(
-      //   userSession.history.map((object) => {
-      //     return object.parts.map((part) => part.text);
-      //   }),
-      // );
-
       return result.response.text();
     }),
   );

@@ -1,7 +1,9 @@
 import { bot } from "../bot/bot";
 import { downloadAudio, handleMedia } from "../utils/utils";
-import { queueMediaMiddleware } from "../queueMiddleware/queueMiddleware";
 
 export default () => {
-  bot.on("audio", queueMediaMiddleware(handleMedia, downloadAudio));
+  bot.on("audio", async (ctx) => {
+    const fileId = ctx.audio?.file_id!;
+    handleMedia(ctx, fileId, downloadAudio);
+  })
 };

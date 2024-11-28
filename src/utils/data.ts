@@ -13,6 +13,18 @@ export const allowedDocumentTypes: AllowedTypes = {
   rtf: "text/rtf",
 };
 
+export const allowedVideoTypes: AllowedTypes = {
+  mp4: "video/mp4",
+  mpeg: "video/mpeg",
+  mov: "video/mov",
+  avi: "video/avi",
+  flv: "video/x-flv",
+  mpg: "video/mpg",
+  webm: "video/webm",
+  wmv: "video/wmv",
+  "3gpp": "video/3gpp",
+};
+
 export const allowedAudioTypes: AllowedTypes = {
   wav: "audio/wav",
   mp3: "audio/mp3",

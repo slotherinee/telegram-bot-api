@@ -5,13 +5,17 @@ import {
   allowedAudioTypes,
   allowedDocumentTypes,
   allowedImageTypes,
+  allowedVideoTypes,
 } from "./data";
-import { GoogleAIFileManager } from "@google/generative-ai/server";
+import { FileState, GoogleAIFileManager } from "@google/generative-ai/server";
 import model from "../gemini/gemini";
 import { readdir, unlink, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import cron from "node-cron";
 import { query } from "../hf";
+
+const mediaGroupStore = new Map();
+const history = new Map();
 
 export async function handleMedia(
   ctx: TelegramBot.Message,
@@ -20,58 +24,149 @@ export async function handleMedia(
     url: string,
   ) => Promise<{ filePath: string; mimeType: string } | Error>,
 ) {
-  try {
-    bot.sendChatAction(ctx.chat.id, "typing");
-    const fileLink = await bot.getFileLink(fileId);
-    if (!fileLink) {
-      bot.sendMessage(ctx.chat.id, "Something went wrong...");
-      return;
+  if (ctx.media_group_id) {
+    if (!mediaGroupStore.has(ctx.media_group_id)) {
+      mediaGroupStore.set(ctx.media_group_id, {
+        files: [],
+        caption: ctx.caption || ctx.text,
+      });
     }
 
-    const downloadResult = await downloadFunction(fileLink);
-    if (downloadResult instanceof Error) {
-      bot.sendMessage(ctx.chat.id, "Something went wrong...");
-      console.log("error downloading file", downloadResult);
-      return;
-    }
+    const fileInfo = {
+      fileId,
+      type: ctx.photo
+        ? "photo"
+        : ctx.document
+          ? "document"
+          : ctx.video
+            ? "video"
+            : "audio",
+      downloadFunction,
+    };
+    mediaGroupStore.get(ctx.media_group_id).files.push(fileInfo);
 
-    const { filePath, mimeType } = downloadResult;
-    const fileManager = new GoogleAIFileManager(Bun.env.GEMINI_TOKEN as string);
-    const uploadResponse = await fileManager.uploadFile(filePath as string, {
-      mimeType,
-      displayName: "file",
-    });
+    setTimeout(async () => {
+      const groupData = mediaGroupStore.get(ctx.media_group_id);
+      if (!groupData) return;
+      mediaGroupStore.delete(ctx.media_group_id);
 
-    const result = await model.generateContent([
-      {
-        fileData: {
-          mimeType: uploadResponse.file.mimeType,
-          fileUri: uploadResponse.file.uri,
+      try {
+        bot.sendChatAction(ctx.chat.id, "typing");
+
+        const downloadedFiles = [];
+        for (const file of groupData.files) {
+          const fileLink = await bot.getFileLink(file.fileId);
+          if (!fileLink) continue;
+
+          const downloadResult = await file.downloadFunction(fileLink);
+          if (downloadResult instanceof Error) continue;
+
+          downloadedFiles.push(downloadResult);
+        }
+
+        const fileManager = new GoogleAIFileManager(
+          Bun.env.GEMINI_TOKEN as string,
+        );
+        const uploadPromises = downloadedFiles.map((file) =>
+          fileManager.uploadFile(file.filePath, {
+            mimeType: file.mimeType,
+            displayName: "file",
+          }),
+        );
+        const uploads = await Promise.all(uploadPromises);
+
+        const result = await model.generateContent([
+          ...uploads.map((upload) => ({
+            fileData: {
+              mimeType: upload.file.mimeType,
+              fileUri: upload.file.uri,
+            },
+          })),
+          {
+            text:
+              groupData.caption ||
+              "Check these media files and give an answer!",
+          },
+        ]);
+        if (!result.response.text()) {
+          bot.sendMessage(ctx.chat.id, "Something went wrong...");
+        }
+
+        await Promise.all(
+          downloadedFiles.map((file) => deleteFile(file.filePath)),
+        );
+        history.set(ctx.chat.id, result.response.text());
+        bot.sendMessage(ctx.chat.id, result.response.text());
+      } catch (error) {
+        bot.sendMessage(ctx.chat.id, "Something went wrong...");
+      }
+    }, 1000);
+  } else {
+    try {
+      bot.sendChatAction(ctx.chat.id, "typing");
+      const fileLink = await bot.getFileLink(fileId);
+      if (!fileLink) {
+        bot.sendMessage(ctx.chat.id, "Something went wrong...");
+        return;
+      }
+
+      const downloadResult = await downloadFunction(fileLink);
+      if (downloadResult instanceof Error) {
+        bot.sendMessage(ctx.chat.id, "Something went wrong...");
+        console.log("error downloading file", downloadResult);
+        return;
+      }
+
+      const { filePath, mimeType } = downloadResult;
+      const fileManager = new GoogleAIFileManager(
+        Bun.env.GEMINI_TOKEN as string,
+      );
+      const uploadResponse = await fileManager.uploadFile(filePath as string, {
+        mimeType,
+        displayName: "file",
+      });
+
+      const name = uploadResponse.file.name;
+      let file = await fileManager.getFile(name);
+      while (file.state === FileState.PROCESSING) {
+        await new Promise((resolve) => setTimeout(resolve, 5_000));
+        file = await fileManager.getFile(name);
+      }
+
+      if (file.state === FileState.FAILED) {
+        throw new Error("Video processing failed.");
+      }
+
+      const result = await model.generateContent([
+        {
+          fileData: {
+            mimeType: uploadResponse.file.mimeType,
+            fileUri: uploadResponse.file.uri,
+          },
         },
-      },
-      {
-        text:
-          ctx.text ||
-          ctx.caption ||
-          "Check this media file and give an answer!",
-      },
-    ]);
+        {
+          text:
+            ctx.text ||
+            ctx.caption ||
+            "Check this media file and give an answer!",
+        },
+      ]);
 
-    const error = await deleteFile(filePath);
-    if (error instanceof Error) {
-      console.log("error deleting file", error);
+      const error = await deleteFile(filePath);
+      if (error instanceof Error) {
+        console.log("error deleting file", error);
+        bot.sendMessage(ctx.chat.id, "Something went wrong...");
+      }
+
+      if (!result.response.text()) {
+        bot.sendMessage(ctx.chat.id, "Something went wrong...");
+      }
+      bot.sendMessage(ctx.chat.id, result.response.text());
+    } catch (error) {
+      console.log("Error handling media:", error);
       bot.sendMessage(ctx.chat.id, "Something went wrong...");
+      return;
     }
-
-    if (!result.response.text()) {
-      bot.sendMessage(ctx.chat.id, "Something went wrong...");
-    }
-
-    return result.response.text();
-  } catch (error) {
-    console.log("Error handling media:", error);
-    bot.sendMessage(ctx.chat.id, "Something went wrong...");
-    return;
   }
 }
 
@@ -141,7 +236,7 @@ export async function deleteFile(filePath: string): Promise<Error | void> {
 
 function getFileTypebyUrl(url: string) {
   const fileType = url.split("/").pop()?.split(".").pop() || "pdf";
-  if (fileType === "js") {
+  if (fileType === "js" || fileType === "ts" || fileType === "tsx") {
     return "javascript";
   }
   if (fileType === "py") {
@@ -154,6 +249,12 @@ export async function downloadAudio(
   url: string,
 ): Promise<{ filePath: string; mimeType: string } | Error> {
   return downloadResource(url, allowedAudioTypes);
+}
+
+export async function downloadVideo(
+  url: string,
+): Promise<{ filePath: string; mimeType: string } | Error> {
+  return downloadResource(url, allowedVideoTypes);
 }
 
 export async function downloadFile(
