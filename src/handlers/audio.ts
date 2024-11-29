@@ -5,5 +5,5 @@ export default () => {
   bot.on("audio", async (ctx) => {
     const fileId = ctx.audio?.file_id!;
     handleMedia(ctx, fileId, downloadAudio);
-  })
+  });
 };
