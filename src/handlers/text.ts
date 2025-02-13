@@ -30,7 +30,7 @@ export default () => {
             role: "system",
             parts: [
               {
-                text: "Write answers as short as possible! Also answer user the same language he asked you. Also do not use your markdown style, you are telegram bot, so use its markdown style: *bold*, _italic_, [inline url](https), `preformatted fixed-with codeblock`, ```block of code```, nothing else",
+                text: "Also answer user the same language he asked you. Also do not use your markdown style, use this markdown style: *bold*, _italic_, [inline url](https), `preformatted fixed-with codeblock`, ```block of code``` !",
               },
             ],
           },
