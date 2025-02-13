@@ -26,14 +26,6 @@ export default () => {
         const history: participantsMessages = [];
         const chat = model.startChat({
           history,
-          systemInstruction: {
-            role: "system",
-            parts: [
-              {
-                text: "Also answer user the same language he asked you. Also do not use your markdown style, use this markdown style: *bold*, _italic_, [inline url](https), `preformatted fixed-with codeblock`, ```block of code``` !",
-              },
-            ],
-          },
         });
         userSessions.set(chatId, { chat, history });
       }
